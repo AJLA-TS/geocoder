@@ -110,7 +110,7 @@ module Geocoder::Store
       ##
       # Scope options hash for use with a database that supports POWER(),
       # SQRT(), PI(), and trigonometric functions SIN(), COS(), ASIN(),
-      # ATAN2(), DEGREES(), and RADIANS().
+      # ATN2(), DEGREES(), and RADIANS().
       #
       # Bearing calculation based on:
       # http://www.beginningspatial.com/calculating_bearing_one_point_another
@@ -124,14 +124,14 @@ module Geocoder::Store
         bearing = case options[:bearing]
         when :linear
           "CAST(" +
-            "DEGREES(ATAN2( " +
+            "DEGREES(ATN2( " +
               "RADIANS(#{full_column_name(lon_attr)} - #{longitude}), " +
               "RADIANS(#{full_column_name(lat_attr)} - #{latitude})" +
             ")) + 360 " +
           "AS decimal) % 360"
         when :spherical
           "CAST(" +
-            "DEGREES(ATAN2( " +
+            "DEGREES(ATN2( " +
               "SIN(RADIANS(#{full_column_name(lon_attr)} - #{longitude})) * " +
               "COS(RADIANS(#{full_column_name(lat_attr)})), (" +
                 "COS(RADIANS(#{latitude})) * SIN(RADIANS(#{full_column_name(lat_attr)}))" +
