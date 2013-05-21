@@ -15,6 +15,8 @@ module Geocoder
           store[key_for(url)]
         when store.respond_to?(:get)
           store.get key_for(url)
+        when store.respond_to?(:read)
+          store.read key_for(url)
       end
     end
 
@@ -27,6 +29,8 @@ module Geocoder
           store[key_for(url)] = value
         when store.respond_to?(:set)
           store.set key_for(url), value
+        when store.respond_to?(:write)
+          store.write key_for(url), value
       end
     end
 
@@ -78,7 +82,8 @@ module Geocoder
     end
 
     def expire_single_url(url)
-      store.del(key_for(url))
+      key = key_for(url)
+      store.respond_to?(:del) ? store.del(key) : store.delete(key)
     end
   end
 end

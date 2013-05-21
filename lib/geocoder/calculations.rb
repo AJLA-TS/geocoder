@@ -21,14 +21,31 @@ module Geocoder
     #
     KM_IN_MI = 0.621371192
 
+    ##
+    # Conversion factor: multiply by nautical miles to get miles.
+    #
+    KM_IN_NM = 0.539957
+
     # Not a number constant
     NAN = defined?(::Float::NAN) ? ::Float::NAN : 0 / 0.0
+
+    ##
+    # Returns true if all given arguments are valid latitude/longitude values.
+    #
+    def coordinates_present?(*args)
+      args.each do |a|
+        # note that Float::NAN != Float::NAN
+        # still, this could probably be improved:
+        return false if (!a.is_a?(Numeric) or a.to_s == "NaN")
+      end
+      true
+    end
 
     ##
     # Distance spanned by one degree of latitude in the given units.
     #
     def latitude_degree_distance(units = nil)
-      units ||= Geocoder::Configuration.units
+      units ||= Geocoder.config.units
       2 * Math::PI * earth_radius(units) / 360
     end
 
@@ -37,7 +54,7 @@ module Geocoder
     # This ranges from around 69 miles at the equator to zero at the poles.
     #
     def longitude_degree_distance(latitude, units = nil)
-      units ||= Geocoder::Configuration.units
+      units ||= Geocoder.config.units
       latitude_degree_distance(units) * Math.cos(to_radians(latitude))
     end
 
@@ -55,12 +72,12 @@ module Geocoder
     # The options hash supports:
     #
     # * <tt>:units</tt> - <tt>:mi</tt> or <tt>:km</tt>
-    #   See Geocoder::Configuration to know how configure default units.
+    #   Use Geocoder.configure(:units => ...) to configure default units.
     #
     def distance_between(point1, point2, options = {})
 
       # set default options
-      options[:units] ||= Geocoder::Configuration.units
+      options[:units] ||= Geocoder.config.units
 
       # convert to coordinate arrays
       point1 = extract_coordinates(point1)
@@ -91,14 +108,14 @@ module Geocoder
     #   the spherical method is "correct" in that it returns the shortest path
     #   (one along a great circle) but the linear method is less confusing
     #   (returns due east or west when given two points with the same latitude).
-    #   See Geocoder::Configuration to know how configure default method.
+    #   Use Geocoder.configure(:distances => ...) to configure calculation method.
     #
     # Based on: http://www.movable-type.co.uk/scripts/latlong.html
     #
     def bearing_between(point1, point2, options = {})
 
       # set default options
-      options[:method] ||= Geocoder::Configuration.distances
+      options[:method] ||= Geocoder.config.distances
       options[:method] = :linear unless options[:method] == :spherical
 
       # convert to coordinate arrays
@@ -172,7 +189,7 @@ module Geocoder
     end
 
     ##
-    # Returns coordinates of the lower-left and upper-right corners of a box
+    # Returns coordinates of the southwest and northeast corners of a box
     # with the given point at its center. The radius is the shortest distance
     # from the center point to any side of the box (the length of each side
     # is twice the radius).
@@ -185,12 +202,12 @@ module Geocoder
     # ways of specifying the point. Also accepts an options hash:
     #
     # * <tt>:units</tt> - <tt>:mi</tt> or <tt>:km</tt>.
-    #   See Geocoder::Configuration to know how configure default units.
+    #   Use Geocoder.configure(:units => ...) to configure default units.
     #
     def bounding_box(point, radius, options = {})
       lat,lon = extract_coordinates(point)
       radius  = radius.to_f
-      units   = options[:units] || Geocoder::Configuration.units
+      units   = options[:units] || Geocoder.config.units
       [
         lat - (radius / latitude_degree_distance(units)),
         lon - (radius / longitude_degree_distance(lat, units)),
@@ -228,12 +245,12 @@ module Geocoder
     end
 
     def distance_to_radians(distance, units = nil)
-      units ||= Geocoder::Configuration.units
+      units ||= Geocoder.config.units
       distance.to_f / earth_radius(units)
     end
 
     def radians_to_distance(radians, units = nil)
-      units ||= Geocoder::Configuration.units
+      units ||= Geocoder.config.units
       radians * earth_radius(units)
     end
 
@@ -252,12 +269,23 @@ module Geocoder
     end
 
     ##
+    # Convert kilometers to nautical miles.
+    #
+    def to_nautical_miles(km)
+      km * km_in_nm
+    end
+
+    ##
     # Radius of the Earth in the given units (:mi or :km).
-    # See Geocoder::Configuration to know how configure default units.
+    # Use Geocoder.configure(:units => ...) to configure default units.
     #
     def earth_radius(units = nil)
-      units ||= Geocoder::Configuration.units
-      units == :km ? EARTH_RADIUS : to_miles(EARTH_RADIUS)
+      units ||= Geocoder.config.units
+      case units
+        when :km; EARTH_RADIUS
+        when :mi; to_miles(EARTH_RADIUS)
+        when :nm; to_nautical_miles(EARTH_RADIUS)
+      end
     end
 
     ##
@@ -268,10 +296,26 @@ module Geocoder
     end
 
     ##
+    # Conversion factor: km to nm.
+    #
+    def km_in_nm
+      KM_IN_NM
+    end
+
+
+
+    ##
     # Conversion factor: mi to km.
     #
     def mi_in_km
       1.0 / KM_IN_MI
+    end
+
+    ##
+    # Conversion factor: nm to km.
+    #
+    def nm_in_km
+      1.0 / KM_IN_NM
     end
 
     ##

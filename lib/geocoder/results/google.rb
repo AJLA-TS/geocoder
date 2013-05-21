@@ -11,6 +11,12 @@ module Geocoder::Result
       formatted_address
     end
 
+    def neighborhood
+      if neighborhood = address_components_of_type(:neighborhood).first
+        neighborhood['long_name']
+      end
+    end
+
     def city
       fields = [:locality, :sublocality,
         :administrative_area_level_3,
@@ -35,6 +41,18 @@ module Geocoder::Result
       end
     end
 
+    def sub_state
+      if state = address_components_of_type(:administrative_area_level_2).first
+        state['long_name']
+      end
+    end
+
+    def sub_state_code
+      if state = address_components_of_type(:administrative_area_level_2).first
+        state['short_name']
+      end
+    end
+
     def country
       if country = address_components_of_type(:country).first
         country['long_name']
@@ -51,6 +69,22 @@ module Geocoder::Result
       if postal = address_components_of_type(:postal_code).first
         postal['long_name']
       end
+    end
+
+    def route
+      if route = address_components_of_type(:route).first
+        route['long_name']
+      end
+    end
+
+    def street_number
+      if street_number = address_components_of_type(:street_number).first
+        street_number['long_name']
+      end
+    end
+
+    def street_address
+      [street_number, route].compact.join(' ')
     end
 
     def types

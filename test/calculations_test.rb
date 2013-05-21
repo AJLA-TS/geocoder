@@ -3,10 +3,10 @@ require 'test_helper'
 
 class CalculationsTest < Test::Unit::TestCase
   def setup
-    Geocoder.configure do
-      config.units  = :mi
-      config.distances = :linear
-    end
+    Geocoder.configure(
+      :units => :mi,
+      :distances => :linear
+    )
   end
 
   # --- degree distance ---
@@ -36,6 +36,12 @@ class CalculationsTest < Test::Unit::TestCase
     assert_equal 111, Geocoder::Calculations.distance_between([0,0], [0,1], :units => :km).round
     la_to_ny = Geocoder::Calculations.distance_between([34.05,-118.25], [40.72,-74], :units => :km).round
     assert (la_to_ny - 3942).abs < 10
+  end
+
+  def test_distance_between_in_nautical_miles
+    assert_equal 60, Geocoder::Calculations.distance_between([0,0], [0,1], :units => :nm).round
+    la_to_ny = Geocoder::Calculations.distance_between([34.05,-118.25], [40.72,-74], :units => :nm).round
+    assert (la_to_ny - 2124).abs < 10
   end
 
 
@@ -152,24 +158,24 @@ class CalculationsTest < Test::Unit::TestCase
 
   def test_extract_coordinates
     result = Geocoder::Calculations.extract_coordinates([ nil, nil ])
-    assert_equal [ Geocoder::Calculations::NAN ] * 2, result
+    assert is_nan_coordinates?(result)
 
     result = Geocoder::Calculations.extract_coordinates([ 1.0 / 3, 2.0 / 3 ])
     assert_in_delta 1.0 / 3, result.first, 1E-5
     assert_in_delta 2.0 / 3, result.last, 1E-5
 
     result = Geocoder::Calculations.extract_coordinates(nil)
-    assert_equal [ Geocoder::Calculations::NAN ] * 2, result
+    assert is_nan_coordinates?(result)
 
     result = Geocoder::Calculations.extract_coordinates('')
-    assert_equal [ Geocoder::Calculations::NAN ] * 2, result
+    assert is_nan_coordinates?(result)
 
     result = Geocoder::Calculations.extract_coordinates([ 'nix' ])
-    assert_equal [ Geocoder::Calculations::NAN ] * 2, result
+    assert is_nan_coordinates?(result)
 
     o = Object.new
     result = Geocoder::Calculations.extract_coordinates(o)
-    assert_equal [ Geocoder::Calculations::NAN ] * 2, result
+    assert is_nan_coordinates?(result)
 
     def o.to_coordinates
       [ 1.0 / 3, 2.0 / 3 ]
@@ -178,5 +184,18 @@ class CalculationsTest < Test::Unit::TestCase
     assert_in_delta 1.0 / 3, result.first, 1E-5
     assert_in_delta 2.0 / 3, result.last, 1E-5
   end
-end
 
+  def test_coordinates_present
+    assert Geocoder::Calculations.coordinates_present?(3.23)
+    assert !Geocoder::Calculations.coordinates_present?(nil)
+    assert !Geocoder::Calculations.coordinates_present?(Geocoder::Calculations::NAN)
+    assert !Geocoder::Calculations.coordinates_present?(3.23, nil)
+  end
+
+  def test_extract_coordinates
+    coords = [-23,47]
+    l = Landmark.new("Madagascar", coords[0], coords[1])
+    assert_equal coords, Geocoder::Calculations.extract_coordinates(l)
+    assert_equal coords, Geocoder::Calculations.extract_coordinates(coords)
+  end
+end
