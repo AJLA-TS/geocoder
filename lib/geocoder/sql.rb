@@ -5,7 +5,7 @@ module Geocoder
     ##
     # Distance calculation for use with a database that supports POWER(),
     # SQRT(), PI(), and trigonometric functions SIN(), COS(), ASIN(),
-    # ATAN2(), DEGREES(), and RADIANS().
+    # ATA2(), DEGREES(), and RADIANS().
     #
     # Based on the excellent tutorial at:
     # http://www.scribd.com/doc/2569355/Geo-Distance-Search-with-MySQL
@@ -66,14 +66,14 @@ module Geocoder
       case options[:bearing] || Geocoder.config.distances
       when :linear
         "CAST(" +
-          "DEGREES(ATAN2( " +
+          "DEGREES(ATN2( " +
             "RADIANS(#{lon_attr} - #{longitude.to_f}), " +
             "RADIANS(#{lat_attr} - #{latitude.to_f})" +
           ")) + 360 " +
         "AS decimal) % 360"
       when :spherical
         "CAST(" +
-          "DEGREES(ATAN2( " +
+          "DEGREES(ATN2( " +
             "SIN(RADIANS(#{lon_attr} - #{longitude.to_f})) * " +
             "COS(RADIANS(#{lat_attr})), (" +
               "COS(RADIANS(#{latitude.to_f})) * SIN(RADIANS(#{lat_attr}))" +
