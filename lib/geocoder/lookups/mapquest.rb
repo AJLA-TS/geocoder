@@ -10,12 +10,11 @@ module Geocoder::Lookup
     end
 
     def required_api_key_parts
-      []
+      ["key"]
     end
 
     def query_url(query)
-      key = configuration.api_key
-      domain = key ? "www" : "open"
+      domain = configuration[:open] ? "open" : "www"
       url = "#{protocol}://#{domain}.mapquestapi.com/geocoding/v1/#{search_type(query)}?"
       url + url_query_string(query)
     end
@@ -34,9 +33,26 @@ module Geocoder::Lookup
       params.merge(super)
     end
 
+    # http://www.mapquestapi.com/geocoding/status_codes.html
+    # http://open.mapquestapi.com/geocoding/status_codes.html
     def results(query)
       return [] unless doc = fetch_data(query)
-      doc["results"][0]['locations']
+      return doc["results"][0]['locations'] if doc['info']['statuscode'] == 0 # A successful geocode call
+
+      messages = doc['info']['messages'].join
+
+      case doc['info']['statuscode']
+      when 400 # Error with input
+        raise_error(Geocoder::InvalidRequest, messages) ||
+          Geocoder.log(:warn, "Mapquest Geocoding API error: #{messages}")
+      when 403 # Key related error
+        raise_error(Geocoder::InvalidApiKey, messages) ||
+          Geocoder.log(:warn, "Mapquest Geocoding API error: #{messages}")
+      when 500 # Unknown error
+        raise_error(Geocoder::Error, messages) ||
+          Geocoder.log(:warn, "Mapquest Geocoding API error: #{messages}")
+      end
+      []
     end
 
   end

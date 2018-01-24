@@ -3,5 +3,14 @@
     {
     "locations": []
     }
-  ]
+  ],
+  "info": {
+    "copyright": {
+      "text": "© 2012 MapQuest, Inc.",
+      "imageUrl": "http://api.mqcdn.com/res/mqlogo.gif",
+      "imageAltText": "© 2012 MapQuest, Inc."
+    },
+    "statuscode": 0,
+    "messages": []
+  }
 }

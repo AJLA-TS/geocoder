@@ -11,34 +11,6 @@ module Geocoder::Store
         scope :not_geocoded, lambda {
           where(geocoder_options[:coordinates] => nil)
         }
-
-        scope :near, lambda{ |location, *args|
-          coords  = Geocoder::Calculations.extract_coordinates(location)
-
-          # no results if no lat/lon given
-          return where(:id => false) unless coords.is_a?(Array)
-
-          radius  = args.size > 0 ? args.shift : 20
-          options = args.size > 0 ? args.shift : {}
-          options[:units] ||= geocoder_options[:units]
-
-          # Use BSON::OrderedHash if Ruby's hashes are unordered.
-          # Conditions must be in order required by indexes (see mongo gem).
-          version = RUBY_VERSION.split('.').map { |i| i.to_i }
-          empty = version[0] < 2 && version[1] < 9 ? BSON::OrderedHash.new : {}
-
-          conds = empty.clone
-          field = geocoder_options[:coordinates]
-          conds[field] = empty.clone
-          conds[field]["$nearSphere"]  = coords.reverse
-          conds[field]["$maxDistance"] = \
-            Geocoder::Calculations.distance_to_radians(radius, options[:units])
-
-          if obj = options[:exclude]
-            conds[:_id.ne] = obj.id
-          end
-          where(conds)
-        }
       end
     end
 

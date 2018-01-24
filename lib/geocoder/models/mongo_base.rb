@@ -1,5 +1,3 @@
-require 'geocoder'
-
 module Geocoder
 
   ##
@@ -19,7 +17,9 @@ module Geocoder
           :geocode_block => block,
           :units         => options[:units],
           :method        => options[:method],
-          :skip_index    => options[:skip_index] || false
+          :skip_index    => options[:skip_index] || false,
+          :lookup        => options[:lookup],
+          :language      => options[:language]
         )
       end
 
@@ -34,7 +34,9 @@ module Geocoder
           :reverse_block   => block,
           :units           => options[:units],
           :method          => options[:method],
-          :skip_index      => options[:skip_index] || false
+          :skip_index      => options[:skip_index] || false,
+          :lookup          => options[:lookup],
+          :language        => options[:language]
         )
       end
 

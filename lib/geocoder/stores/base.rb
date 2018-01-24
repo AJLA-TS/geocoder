@@ -6,7 +6,7 @@ module Geocoder
       # Is this object geocoded? (Does it have latitude and longitude?)
       #
       def geocoded?
-        to_coordinates.compact.size > 0
+        to_coordinates.compact.size == 2
       end
 
       ##
@@ -56,17 +56,6 @@ module Geocoder
       end
 
       ##
-      # Get nearby geocoded objects.
-      # Takes the same options hash as the near class method (scope).
-      # Returns nil if the object is not geocoded.
-      #
-      def nearbys(radius = 20, options = {})
-        return nil unless geocoded?
-        options.merge!(:exclude => self) unless send(self.class.primary_key).nil?
-        self.class.near(self, radius, options)
-      end
-
-      ##
       # Look up coordinates and assign to +latitude+ and +longitude+ attributes
       # (or other as specified in +geocoded_by+). Returns coordinates (array).
       #
@@ -101,7 +90,14 @@ module Geocoder
           return
         end
 
-        results = Geocoder.search(query)
+        query_options = [:lookup, :ip_lookup, :language].inject({}) do |hash, key|
+          if options.has_key?(key)
+            val = options[key]
+            hash[key] = val.respond_to?(:call) ? val.call(self) : val
+          end
+          hash
+        end
+        results = Geocoder.search(query, query_options)
 
         # execute custom block, if specified in configuration
         block_key = reverse ? :reverse_block : :geocode_block
@@ -117,4 +113,3 @@ module Geocoder
     end
   end
 end
-

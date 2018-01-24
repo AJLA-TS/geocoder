@@ -7,9 +7,18 @@ module Geocoder::Lookup
     def name
       "FreeGeoIP"
     end
+    
+    def supported_protocols
+      if configuration[:host]
+        [:http, :https]
+      else
+        # use https for default host
+        [:https]
+      end
+    end
 
     def query_url(query)
-      "#{protocol}://freegeoip.net/json/#{query.sanitized_text}"
+      "#{protocol}://#{host}/json/#{query.sanitized_text}"
     end
 
     private # ---------------------------------------------------------------
@@ -38,6 +47,10 @@ module Geocoder::Lookup
         "country_name" => "Reserved",
         "country_code" => "RD"
       }
+    end
+
+    def host
+      configuration[:host] || "freegeoip.net"
     end
   end
 end

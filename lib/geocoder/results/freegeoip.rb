@@ -29,11 +29,11 @@ module Geocoder::Result
     end
 
     def postal_code
-      @data['zipcode']
+      @data['zipcode'] || @data['zip_code']
     end
 
     def self.response_attributes
-      %w[metrocode ip]
+      %w[metro_code ip]
     end
 
     response_attributes.each do |a|

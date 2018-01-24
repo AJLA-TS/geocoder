@@ -11,12 +11,6 @@ module Geocoder
     COMPASS_POINTS = %w[N NE E SE S SW W NW]
 
     ##
-    # Radius of the Earth, in kilometers.
-    # Value taken from: http://en.wikipedia.org/wiki/Earth_radius
-    #
-    EARTH_RADIUS = 6371.0
-
-    ##
     # Conversion factor: multiply by kilometers to get miles.
     #
     KM_IN_MI = 0.621371192
@@ -25,6 +19,21 @@ module Geocoder
     # Conversion factor: multiply by nautical miles to get miles.
     #
     KM_IN_NM = 0.539957
+
+    ##
+    # Conversion factor: multiply by radians to get degrees.
+    #
+    DEGREES_PER_RADIAN = 57.2957795
+
+    ##
+    # Radius of the Earth, in kilometers.
+    # Value taken from: http://en.wikipedia.org/wiki/Earth_radius
+    #
+    EARTH_RADII = {km: 6371.0}
+    EARTH_RADII[:mi] = EARTH_RADII[:km] * KM_IN_MI
+    EARTH_RADII[:nm] = EARTH_RADII[:km] * KM_IN_NM
+
+    EARTH_RADIUS = EARTH_RADII[:km] # TODO: deprecate this constant (use `EARTH_RADII[:km]`)
 
     # Not a number constant
     NAN = defined?(::Float::NAN) ? ::Float::NAN : 0 / 0.0
@@ -45,7 +54,6 @@ module Geocoder
     # Distance spanned by one degree of latitude in the given units.
     #
     def latitude_degree_distance(units = nil)
-      units ||= Geocoder.config.units
       2 * Math::PI * earth_radius(units) / 360
     end
 
@@ -54,7 +62,6 @@ module Geocoder
     # This ranges from around 69 miles at the equator to zero at the poles.
     #
     def longitude_degree_distance(latitude, units = nil)
-      units ||= Geocoder.config.units
       latitude_degree_distance(units) * Math.cos(to_radians(latitude))
     end
 
@@ -75,10 +82,6 @@ module Geocoder
     #   Use Geocoder.configure(:units => ...) to configure default units.
     #
     def distance_between(point1, point2, options = {})
-
-      # set default options
-      options[:units] ||= Geocoder.config.units
-
       # convert to coordinate arrays
       point1 = extract_coordinates(point1)
       point2 = extract_coordinates(point2)
@@ -207,13 +210,82 @@ module Geocoder
     def bounding_box(point, radius, options = {})
       lat,lon = extract_coordinates(point)
       radius  = radius.to_f
-      units   = options[:units] || Geocoder.config.units
       [
-        lat - (radius / latitude_degree_distance(units)),
-        lon - (radius / longitude_degree_distance(lat, units)),
-        lat + (radius / latitude_degree_distance(units)),
-        lon + (radius / longitude_degree_distance(lat, units))
+        lat - (radius / latitude_degree_distance(options[:units])),
+        lon - (radius / longitude_degree_distance(lat, options[:units])),
+        lat + (radius / latitude_degree_distance(options[:units])),
+        lon + (radius / longitude_degree_distance(lat, options[:units]))
       ]
+    end
+
+    ##
+    # Random point within a circle of provided radius centered
+    # around the provided point
+    # Takes one point, one radius, and an options hash.
+    # The points are given in the same way that points are given to all
+    # Geocoder methods that accept points as arguments. They can be:
+    #
+    # * an array of coordinates ([lat,lon])
+    # * a geocodable address (string)
+    # * a geocoded object (one which implements a +to_coordinates+ method
+    #   which returns a [lat,lon] array
+    #
+    # The options hash supports:
+    #
+    # * <tt>:units</tt> - <tt>:mi</tt> or <tt>:km</tt>
+    #   Use Geocoder.configure(:units => ...) to configure default units.
+    # * <tt>:seed</tt> - The seed for the random number generator
+    def random_point_near(center, radius, options = {})
+      random = Random.new(options[:seed] || Random.new_seed)
+
+      # convert to coordinate arrays
+      center = extract_coordinates(center)
+
+      earth_circumference = 2 * Math::PI * earth_radius(options[:units])
+      max_degree_delta =  360.0 * (radius / earth_circumference)
+
+      # random bearing in radians
+      theta = 2 * Math::PI * random.rand
+
+      # random radius, use the square root to ensure a uniform
+      # distribution of points over the circle
+      r = Math.sqrt(random.rand) * max_degree_delta
+
+      delta_lat, delta_long = [r * Math.cos(theta), r * Math.sin(theta)]
+      [center[0] + delta_lat, center[1] + delta_long]
+    end
+
+    ##
+    # Given a start point, heading (in degrees), and distance, provides
+    # an endpoint.
+    # The starting point is given in the same way that points are given to all
+    # Geocoder methods that accept points as arguments. It can be:
+    #
+    # * an array of coordinates ([lat,lon])
+    # * a geocodable address (string)
+    # * a geocoded object (one which implements a +to_coordinates+ method
+    #   which returns a [lat,lon] array
+    #
+    def endpoint(start, heading, distance, options = {})
+      radius = earth_radius(options[:units])
+
+      start = extract_coordinates(start)
+
+      # convert degrees to radians
+      start = to_radians(start)
+
+      lat = start[0]
+      lon = start[1]
+      heading = to_radians(heading)
+      distance = distance.to_f
+
+      end_lat = Math.asin(Math.sin(lat)*Math.cos(distance/radius) +
+                    Math.cos(lat)*Math.sin(distance/radius)*Math.cos(heading))
+
+      end_lon = lon+Math.atan2(Math.sin(heading)*Math.sin(distance/radius)*Math.cos(lat),
+                    Math.cos(distance/radius)-Math.sin(lat)*Math.sin(end_lat))
+
+      to_degrees [end_lat, end_lon]
     end
 
     ##
@@ -245,12 +317,10 @@ module Geocoder
     end
 
     def distance_to_radians(distance, units = nil)
-      units ||= Geocoder.config.units
       distance.to_f / earth_radius(units)
     end
 
     def radians_to_distance(radians, units = nil)
-      units ||= Geocoder.config.units
       radians * earth_radius(units)
     end
 
@@ -258,6 +328,7 @@ module Geocoder
     # Convert miles to kilometers.
     #
     def to_kilometers(mi)
+      Geocoder.log(:warn, "DEPRECATION WARNING: Geocoder::Calculations.to_kilometers is deprecated and will be removed in Geocoder 1.5.0. Please multiply by MI_IN_KM instead.")
       mi * mi_in_km
     end
 
@@ -265,14 +336,16 @@ module Geocoder
     # Convert kilometers to miles.
     #
     def to_miles(km)
-      km * km_in_mi
+      Geocoder.log(:warn, "DEPRECATION WARNING: Geocoder::Calculations.to_miles is deprecated and will be removed in Geocoder 1.5.0. Please multiply by KM_IN_MI instead.")
+      km * KM_IN_MI
     end
 
     ##
     # Convert kilometers to nautical miles.
     #
     def to_nautical_miles(km)
-      km * km_in_nm
+      Geocoder.log(:warn, "DEPRECATION WARNING: Geocoder::Calculations.to_nautical_miles is deprecated and will be removed in Geocoder 1.5.0. Please multiply by KM_IN_NM instead.")
+      km * KM_IN_NM
     end
 
     ##
@@ -280,18 +353,14 @@ module Geocoder
     # Use Geocoder.configure(:units => ...) to configure default units.
     #
     def earth_radius(units = nil)
-      units ||= Geocoder.config.units
-      case units
-        when :km; EARTH_RADIUS
-        when :mi; to_miles(EARTH_RADIUS)
-        when :nm; to_nautical_miles(EARTH_RADIUS)
-      end
+      EARTH_RADII[units || Geocoder.config.units]
     end
 
     ##
     # Conversion factor: km to mi.
     #
     def km_in_mi
+      Geocoder.log(:warn, "DEPRECATION WARNING: Geocoder::Calculations.km_in_mi is deprecated and will be removed in Geocoder 1.5.0. Please use the constant KM_IN_MI instead.")
       KM_IN_MI
     end
 
@@ -299,15 +368,15 @@ module Geocoder
     # Conversion factor: km to nm.
     #
     def km_in_nm
+      Geocoder.log(:warn, "DEPRECATION WARNING: Geocoder::Calculations.km_in_nm is deprecated and will be removed in Geocoder 1.5.0. Please use the constant KM_IN_NM instead.")
       KM_IN_NM
     end
-
-
 
     ##
     # Conversion factor: mi to km.
     #
     def mi_in_km
+      Geocoder.log(:warn, "DEPRECATION WARNING: Geocoder::Calculations.mi_in_km is deprecated and will be removed in Geocoder 1.5.0. Please use 1.0 / KM_IN_MI instead.")
       1.0 / KM_IN_MI
     end
 
@@ -315,6 +384,7 @@ module Geocoder
     # Conversion factor: nm to km.
     #
     def nm_in_km
+      Geocoder.log(:warn, "DEPRECATION WARNING: Geocoder::Calculations.nm_in_km is deprecated and will be removed in Geocoder 1.5.0. Please use 1.0 / KM_IN_NM instead.")
       1.0 / KM_IN_NM
     end
 
@@ -348,4 +418,3 @@ module Geocoder
     end
   end
 end
-

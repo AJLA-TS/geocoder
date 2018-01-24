@@ -17,7 +17,11 @@ module Geocoder
 
     def sanitized_text
       if coordinates?
-        text.split(/\s*,\s*/).join(',')
+        if text.is_a?(Array)
+          text.join(',')
+        else
+          text.split(/\s*,\s*/).join(',')
+        end
       else
         text
       end
@@ -28,10 +32,10 @@ module Geocoder
     # appropriate to the Query text.
     #
     def lookup
-      if ip_address?
-        name = Configuration.ip_lookup || Geocoder::Lookup.ip_services.first
+      if !options[:street_address] and (options[:ip_address] or ip_address?)
+        name = options[:ip_lookup] || Configuration.ip_lookup || Geocoder::Lookup.ip_services.first
       else
-        name = Configuration.lookup || Geocoder::Lookup.street_services.first
+        name = options[:lookup] || Configuration.lookup || Geocoder::Lookup.street_services.first
       end
       Lookup.get(name)
     end
@@ -59,14 +63,14 @@ module Geocoder
     # dot-delimited numbers.
     #
     def ip_address?
-      !!text.to_s.match(/\A(::ffff:)?(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})\z/)
+      IpAddress.new(text).valid? rescue false
     end
 
     ##
     # Is the Query text a loopback IP address?
     #
     def loopback_ip_address?
-      !!(self.ip_address? and (text == "0.0.0.0" or text.to_s.match(/\A127/)))
+      ip_address? && IpAddress.new(text).loopback?
     end
 
     ##
@@ -92,6 +96,10 @@ module Geocoder
     #
     def reverse_geocode?
       coordinates?
+    end
+
+    def language
+      options[:language]
     end
 
     private # ----------------------------------------------------------------

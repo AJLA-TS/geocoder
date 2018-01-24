@@ -16,7 +16,10 @@ module Geocoder
           :longitude     => options[:longitude] || :longitude,
           :geocode_block => block,
           :units         => options[:units],
-          :method        => options[:method]
+          :method        => options[:method],
+          :lookup        => options[:lookup],
+          :language      => options[:language],
+          :params        => options[:params]
         )
       end
 
@@ -30,8 +33,11 @@ module Geocoder
           :latitude        => latitude_attr,
           :longitude       => longitude_attr,
           :reverse_block   => block,
-          :units         => options[:units],
-          :method        => options[:method]
+          :units           => options[:units],
+          :method          => options[:method],
+          :lookup          => options[:lookup],
+          :language        => options[:language],
+          :params          => options[:params]
         )
       end
 
@@ -43,4 +49,3 @@ module Geocoder
     end
   end
 end
-
